@@ -1,0 +1,178 @@
+<!doctype html>
+<!--
+  SPDX-License-Identifier: Apache-2.0
+  Copyright 2026 Yong Cong Sin <yongcong.sin@gmail.com>
+  Includes PDF.js (Mozilla Foundation, Apache-2.0), see NOTICE.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' blob:; worker-src blob:; style-src 'unsafe-inline'; img-src data: blob:; connect-src blob: data:">
+<title>StashAway Statement Converter</title>
+<style>
+:root {
+  --bg: #f6f7f9; --surface: #ffffff; --text: #1b1f24; --muted: #5d6673; --line: #dfe3e8;
+  --accent: #2f6fde; --accent-text: #ffffff; --accent-soft: #e8f0fd;
+  --warn-bg: #fff5e0; --warn-text: #7a4b00; --inv: #2f6fde; --cash: #2f8a5b;
+  --radius: 10px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111418; --surface: #1a1e24; --text: #e7eaee; --muted: #9aa4b1; --line: #2c323a;
+    --accent: #6d9cf0; --accent-text: #0d1117; --accent-soft: #1f2a3d;
+    --warn-bg: #3a2c12; --warn-text: #f3c873; --inv: #6d9cf0; --cash: #5cc28f;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111418; --surface: #1a1e24; --text: #e7eaee; --muted: #9aa4b1; --line: #2c323a;
+  --accent: #6d9cf0; --accent-text: #0d1117; --accent-soft: #1f2a3d;
+  --warn-bg: #3a2c12; --warn-text: #f3c873; --inv: #6d9cf0; --cash: #5cc28f;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 980px; margin: 0 auto; padding: 32px 16px 64px; }
+h1 { font-size: 24px; margin: 0 0 4px; letter-spacing: -0.01em; }
+h2 { font-size: 16px; margin: 32px 0 12px; }
+h3 { font-size: 15px; margin: 0; }
+p { margin: 0 0 8px; }
+.muted, .lede { color: var(--muted); }
+.lede { margin-bottom: 24px; }
+#drop {
+  border: 2px dashed var(--line); border-radius: var(--radius); background: var(--surface);
+  padding: 36px 16px; text-align: center; cursor: pointer; transition: border-color .15s;
+}
+#drop:hover, #drop:focus-visible, #drop.over { border-color: var(--accent); background: var(--accent-soft); outline: none; }
+#drop strong { display: block; font-size: 16px; margin-bottom: 4px; }
+#busy { margin-top: 12px; color: var(--muted); }
+#status { margin-top: 16px; }
+.warn { background: var(--warn-bg); color: var(--warn-text); padding: 8px 12px; border-radius: 8px; }
+.toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; margin: 24px 0 8px; }
+.toolbar label, .toolbar .field { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
+select, button { font: inherit; color: inherit; }
+select { padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+button { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--accent); }
+button:disabled { opacity: .5; cursor: default; }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
+.spacer { flex: 1; }
+.hint { font-size: 13px; color: var(--muted); margin-bottom: 16px; }
+#cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.card header { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.tag { font-size: 12px; padding: 1px 8px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; }
+.tag.investment { color: var(--inv); }
+.tag.cash { color: var(--cash); }
+dl { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; margin: 0; }
+dt { font-size: 12px; color: var(--muted); }
+dd { margin: 0; font-variant-numeric: tabular-nums; }
+.note { font-size: 13px; color: var(--muted); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; align-self: flex-start; }
+.seg button { border: 0; border-radius: 0; padding: 6px 12px; font-size: 14px; background: var(--surface); color: var(--muted); }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button.on { background: var(--accent-soft); color: var(--text); font-weight: 600; }
+@media (max-width: 560px) {
+  .toolbar .field { width: 100%; }
+  #mode { display: flex; width: 100%; }
+  #mode button { flex: 1 1 0; padding: 6px 4px; font-size: 13px; line-height: 1.25; }
+}
+.buttons { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; }
+.buttons button { font-size: 13px; }
+.config { margin-bottom: 12px; }
+.portfolio { border-top: 1px solid var(--line); padding: 10px 0; }
+.portfolio.excluded .p-head strong { text-decoration: line-through; color: var(--muted); }
+.p-head { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; margin-bottom: 6px; }
+.p-head .muted { font-size: 13px; }
+.p-controls { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: end; }
+.p-controls label { display: grid; gap: 2px; font-size: 12px; color: var(--muted); }
+.p-controls label.check { display: flex; gap: 6px; align-items: center; font-size: 13px; color: var(--text); padding-bottom: 6px; }
+.p-controls input:not([type]), .p-controls select { font: inherit; font-size: 14px; color: var(--text); padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); min-width: 0; }
+.p-controls input:not([type]) { width: 13em; max-width: 100%; }
+#portfolios-reset { margin-top: 6px; }
+.warn-item { color: var(--warn-text); }
+#diagnostics ul ul { margin: 2px 0 6px; font-size: 13px; }
+details { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 14px; margin-top: 12px; }
+summary { cursor: pointer; font-weight: 600; }
+details ul, details ol { margin: 8px 0 12px; padding-left: 20px; }
+details li { margin: 2px 0; }
+code { font-size: 13px; background: var(--accent-soft); padding: 1px 4px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>StashAway statement to CSV and QIF</h1>
+  <p class="lede">Turns StashAway monthly statement PDFs into CSV files you can import into a personal finance app, one set per portfolio. The PDFs are read in this browser and never uploaded.</p>
+
+  <div id="drop" role="button" tabindex="0" aria-describedby="drop-help">
+    <strong>Drop statement PDFs here</strong>
+    <span id="drop-help" class="muted">or click to choose files. Add every month you have; you pick which months to export below.</span>
+  </div>
+  <input id="picker" type="file" accept="application/pdf,.pdf" multiple hidden>
+  <p id="busy" hidden></p>
+  <div id="status"></div>
+
+  <p id="empty" class="muted" style="margin-top:24px">No statements yet.</p>
+
+  <section id="results" hidden>
+    <div class="toolbar">
+      <label>From <select id="from"></select></label>
+      <label>To <select id="to"></select></label>
+      <div class="field">
+        <span id="mode-label">Investment portfolios</span>
+        <div id="mode" class="seg" role="radiogroup" aria-labelledby="mode-label">
+          <button role="radio" data-mode="balance">Balance only</button>
+          <button role="radio" data-mode="tradelog">Balance + trade log</button>
+          <button role="radio" data-mode="holdings">With holdings</button>
+        </div>
+      </div>
+      <span class="spacer"></span>
+      <button id="clear">Clear</button>
+      <button id="accounts" title="One row per portfolio: account type, name, starting balance and date">Accounts CSV</button>
+      <button id="combined" title="All portfolios in one file with an account column, for multi-account imports">Combined CSV</button>
+      <button id="zip" class="primary">Download all (.zip)</button>
+    </div>
+    <p class="hint">Most apps don't skip duplicates when importing CSVs, so export only months you haven't imported yet. Load the statement for the month before <em>From</em> as well: the monthly adjustment builds on its closing balance.</p>
+    <details class="config">
+      <summary>Portfolios <span id="portfolios-count" class="muted"></span></summary>
+      <p class="muted">Detected from the statements, including renames (a portfolio whose opening balance equals the closing balance of one that disappeared). Override only if something's off: rename the exported account, change its type, merge it into another portfolio, or leave it out. Saved in this browser.</p>
+      <div id="portfolios"></div>
+      <button id="portfolios-reset">Reset to detected</button>
+    </details>
+    <div id="cards"></div>
+    <div id="diagnostics"></div>
+
+    <details>
+      <summary>What the files contain</summary>
+      <ul>
+        <li><strong>Balance only</strong> (the default, and always used for cash-like portfolios): one <em>Transactions CSV</em> with deposits, withdrawals, dividends, fees and one <em>Returns (month-end adjustment)</em> row per month. Imported into an account that starts at 0, its running balance equals each statement's closing balance. USD amounts are converted at the statement's month-end rate, with the original amount in the description.</li>
+        <li><strong>Balance + trade log</strong> (investment portfolios): the Balance only file plus every buy and sell as a 0.00 line, e.g. <code>Buy 1.5 VWRA @ USD 120.00 (USD 180.00)</code>. A trade swaps cash for units inside the portfolio, so it doesn't change the balance; you get the full activity list without your app having to look up tickers or track holdings.</li>
+        <li><strong>With holdings</strong> (investment portfolios, when selected at the top): a <em>Trades CSV</em> with every buy and sell, a <em>Transactions CSV</em> with the cash movements, and a <em>Month-end balances CSV</em> with each statement's closing value. Your app values the holdings itself, so record the month-end balances as balance updates to keep totals exact.</li>
+        <li><strong>Combined CSV</strong>: the same data for all portfolios in one file, with a leading <code>account</code> column, for apps whose import can split rows across accounts (a multi-account import). The account names match the Accounts CSV, so import that first and every row maps to the right account. With holdings, this is a zip with a combined trades file and a combined transactions file; month-end balances stay per portfolio.</li>
+        <li>Columns: trades <code>date, ticker, qty, price, currency, name</code> (negative qty = sell, price in the trade's currency); transactions <code>date, amount, currency, name</code> with <em>inflows positive</em> (deposits, dividends and gains +; withdrawals, fees and losses −); month-end balances <code>date, balance, currency</code>. Dates are <code>YYYY-MM-DD</code>.</li>
+        <li><strong>QIF</strong> (Balance only and Balance + trade log): the same transactions, including the monthly returns adjustments, as a Quicken Interchange Format file per account, starting with an <em>Opening Balance</em> record (the balance just before the first entry), so no separate starting balance or column mapping is needed. Trade lines aren't included (they don't change the balance), and With holdings has no QIF: QIF's bank format can't carry units and prices. QIF has no currency field: import each file into an account of that currency. Dates are <code>YYYY-MM-DD</code>; the name is the payee (<code>P</code>) and the notes the memo (<code>M</code>).</li>
+        <li><strong>Accounts CSV</strong> (also in the zip): one row per exported portfolio with <code>Account type, Name, Balance, Currency, Balance Date</code>, for apps that create accounts from a file. <em>Investment</em> or <em>Savings</em>, named like the files (<em>StashAway</em> followed by the portfolio name), with the balance just before the first exported entry: 0 for a full history, or the previous month's closing balance when you export from a later month. Import it first, then the other files into those accounts.</li>
+        <li>If your app looks tickers up, check the matches: a ticker can belong to a different company on another exchange, so the same ticker on two exchanges can be two unrelated securities.</li>
+      </ul>
+    </details>
+    <details>
+      <summary>How portfolios are grouped</summary>
+      <ul>
+        <li>Each portfolio in the statements becomes one account, named after its latest name. Names are compared as written, apart from "™" and a "StashAway " prefix.</li>
+        <li>A renamed portfolio is followed automatically, whether StashAway or you renamed it: when a new name opens with exactly the closing balance of a portfolio that disappeared that month, it is the same portfolio.</li>
+        <li>Two portfolios with the same name are told apart by reporting currency, with the currency added to the account name, e.g. <em>Name (SGD)</em> and <em>Name (USD)</em>.</li>
+        <li>Portfolios under <em>Investment Portfolios</em> are investment portfolios; those under <em>Cash Management</em> are cash-like and get deposits, withdrawals, fees and rebates only, without fund switches. Fixed-term (Guaranteed) placements are grouped into one cash-like <em>Guaranteed</em> account.</li>
+        <li>FX conversions inside a portfolio and fixed-deposit placements are skipped as internal.</li>
+        <li>Use <em>Portfolios</em> above to change any of this.</li>
+      </ul>
+    </details>
+  </section>
+</main>
+<script>/*PDFJS*/</script>
+<script type="text/plain" id="pdf-worker-src">/*PDFJS_WORKER*/</script>
+<script>/*PARSER*/</script>
+<script>/*APP*/</script>
+</body>
+</html>

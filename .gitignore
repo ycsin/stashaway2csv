@@ -1,0 +1,12 @@
+test/node_modules/
+
+# Never commit statements or anything derived from them (test dumps,
+# downloaded CSVs/zips, screenshots of the page with real data).
+*.pdf
+*.csv
+*.zip
+*.png
+test/out/
+test/*.json
+!test/package.json
+!test/package-lock.json

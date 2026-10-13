@@ -1,0 +1,8 @@
+stashaway2csv
+Copyright 2026 Yong Cong Sin <yongcong.sin@gmail.com>
+
+This product includes PDF.js (https://mozilla.github.io/pdf.js/), version 3.11.174,
+Copyright Mozilla Foundation, licensed under the Apache License, Version 2.0.
+Its files are in vendor/ and are embedded in index.html by build.py.
+
+This project is not affiliated with or endorsed by StashAway.

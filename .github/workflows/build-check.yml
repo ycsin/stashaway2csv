@@ -1,0 +1,37 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Yong Cong Sin <yongcong.sin@gmail.com>
+#
+# index.html is built from src/ and vendor/ by build.py and committed, because
+# GitHub Pages serves it as-is. Fail if the committed copy is out of date.
+name: Build check
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Syntax-check sources
+        run: |
+          for f in src/*.js test/*.js; do node --check "$f"; done
+
+      - name: Rebuild index.html
+        run: python3 build.py
+
+      - name: Compare with the committed index.html
+        run: |
+          if ! git diff --exit-code -- index.html; then
+            echo "::error file=index.html::index.html is out of date. Run 'python3 build.py' and commit the result."
+            exit 1
+          fi

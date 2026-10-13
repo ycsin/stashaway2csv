@@ -1,0 +1,14 @@
+{
+  "name": "stashaway2csv-tests",
+  "version": "1.0.0",
+  "description": "Tests for stashaway2csv (need your own StashAway statement PDFs)",
+  "scripts": {},
+  "keywords": [],
+  "author": "Yong Cong Sin <yongcong.sin@gmail.com>",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "pdfjs-dist": "^3.11.174",
+    "playwright-core": "^1.57.0"
+  },
+  "private": true
+}
